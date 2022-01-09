@@ -20,3 +20,6 @@ add_library(
 add_executable(matching_engine main.cpp)
 
 target_link_libraries(matching_engine PRIVATE TradeDB ThreadPool)
+
+enable_testing()
+add_subdirectory(tests)

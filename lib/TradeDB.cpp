@@ -17,12 +17,12 @@ int TradeDB::Insert(const std::shared_ptr<Entry>& entry) {
     switch (entry->getEntryType()) {
         case BUY:
             {
-                entry->setEntryId(++order_counter);
+                if (entry->getEntryId() == 0)
+                    entry->setEntryId(++order_counter);
 
                 auto it = buy_map.find(entry->getAssetId());
                 if (it == buy_map.end()) {
-                    auto *set = new PriceSet();
-                    std::tie(it, std::ignore) = buy_map.emplace(entry->getAssetId(), *set);
+                    std::tie(it, std::ignore) = buy_map.emplace(entry->getAssetId(), DescPriceSet());
                 }
                 it->second.insert(entry);
 
@@ -32,12 +32,12 @@ int TradeDB::Insert(const std::shared_ptr<Entry>& entry) {
             break;
         case SELL:
             {
-                entry->setEntryId(++order_counter);
+                if (entry->getEntryId() == 0)
+                    entry->setEntryId(++order_counter);
 
                 auto it = sell_map.find(entry->getAssetId());
                 if (it == sell_map.end()) {
-                    auto *set = new PriceSet();
-                    std::tie(it, std::ignore) = sell_map.emplace(entry->getAssetId(), *set);
+                    std::tie(it, std::ignore) = sell_map.emplace(entry->getAssetId(), AscPriceSet());
                 }
                 it->second.insert(entry);
 
@@ -128,10 +128,12 @@ void TradeDB::ExecuteOrder(const std::shared_ptr<Entry>& entry) {
                     return;
                 }
 
+                if (entry->getEntryId() == 0)
+                    entry->setEntryId(++order_counter);
+
                 auto our_price = entry->getPrice();
                 auto our_stocks = entry->getNumStocks();
-
-                for(auto& sell_entry : sell_map[asset]) { // already sorted by asc price
+                for(const auto& sell_entry : sell_map[asset]) { // already sorted by asc price
                     if (our_price >= sell_entry->getPrice()) {
                         auto their_stocks = sell_entry->getNumStocks();
                         if (our_stocks == their_stocks) {
@@ -171,10 +173,13 @@ void TradeDB::ExecuteOrder(const std::shared_ptr<Entry>& entry) {
                 return;
             }
 
+            if (entry->getEntryId() == 0)
+                entry->setEntryId(++order_counter);
+
             auto our_price = entry->getPrice();
             auto our_stocks = entry->getNumStocks();
             auto buy_book = buy_map[asset];
-            for(const auto &it : std::ranges::reverse_view(buy_book)) { // sorted by desc price
+            for(const auto &it : buy_book) { // already sorted by desc price
                 auto buy_entry = it;
                 if (buy_entry->getPrice() >= our_price) {
                     auto their_stocks = buy_entry->getNumStocks();
@@ -216,13 +221,13 @@ void TradeDB::CompleteOrder(TradeCompletionType tct, const std::shared_ptr<Entry
 
 void TradeDB::topOfTheBook(const std::string& asset_id) {
     if (buy_map.contains(asset_id) && !buy_map[asset_id].empty()) {
-        auto& top_buy = *buy_map[asset_id].crbegin();
+        const auto& top_buy = *buy_map[asset_id].cbegin(); // first elem because desc
         std::cout << "Top buy for asset " << asset_id <<  " is " << *top_buy << std::endl;
     } else {
         std::cout << "No buy orders found for this asset" << std::endl;
     }
     if (sell_map.contains(asset_id) && !sell_map[asset_id].empty()) {
-        auto& top_sell = *sell_map[asset_id].crbegin();
+        const auto& top_sell = *sell_map[asset_id].crbegin(); // last elem, because asc
         std::cout << "Top sell for asset " << asset_id <<  " is " << *top_sell << std::endl;
     } else {
         std::cout << "No sell orders found for this asset" << std::endl;
@@ -233,7 +238,7 @@ void TradeDB::priceDepths(const std::string &asset_id) {
     if (buy_map.contains(asset_id) && !buy_map[asset_id].empty()) {
         std::cout << "Price depth for asset: " << std::endl;
         std::cout << "Buy depth:" << std::endl;
-        for(const auto &it : std::ranges::reverse_view(buy_map[asset_id])) {
+        for(const auto &it : buy_map[asset_id]) {
             std::cout << "\t" << *it << std::endl;
         }
     } else {

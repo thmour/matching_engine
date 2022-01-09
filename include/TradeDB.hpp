@@ -12,6 +12,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <tuple>
 #include <shared_mutex>
 
 #include "../include/Entry.hpp"
@@ -20,12 +21,21 @@ typedef std::shared_mutex Lock;
 typedef std::unique_lock<Lock> WriteLock;
 typedef std::shared_lock<Lock> ReadLock;
 
-struct compareByPrice
+struct compareByDescPriceDescStocks
 {
     bool operator()(const std::shared_ptr<Entry>& lhs, const std::shared_ptr<Entry>& rhs) const
     {
-        return lhs->getPrice() < rhs->getPrice() ||
-               (lhs->getPrice() == rhs->getPrice()) && lhs->getEntryId() < rhs->getEntryId();
+        return std::tuple(rhs->getPrice(), rhs->getNumStocks(), lhs->getEntryId()) <
+               std::tuple(lhs->getPrice(), lhs->getNumStocks(), rhs->getEntryId());
+    }
+};
+
+struct compareByAscPriceDescStocks
+{
+    bool operator()(const std::shared_ptr<Entry>& lhs, const std::shared_ptr<Entry>& rhs) const
+    {
+        return std::tuple(lhs->getPrice(), rhs->getNumStocks(), lhs->getEntryId()) <
+               std::tuple(rhs->getPrice(), lhs->getNumStocks(), rhs->getEntryId());
     }
 };
 
@@ -37,7 +47,8 @@ struct compareByTime
     }
 };
 
-typedef std::set<std::shared_ptr<Entry>, compareByPrice> PriceSet;
+typedef std::set<std::shared_ptr<Entry>, compareByDescPriceDescStocks> DescPriceSet;
+typedef std::set<std::shared_ptr<Entry>, compareByAscPriceDescStocks> AscPriceSet;
 typedef std::map<uint64_t, std::shared_ptr<Entry>> IDMap;
 
 enum TradeCompletionType { FULL, PARTIAL };
@@ -62,8 +73,8 @@ private:
 
     static IDMap id_map;
     static Lock id_lock;
-    std::map<std::string, PriceSet> buy_map;
-    std::map<std::string, PriceSet> sell_map;
+    std::map<std::string, DescPriceSet> buy_map;
+    std::map<std::string, AscPriceSet> sell_map;
 };
 
 #endif //MATCHING_ENGINE_TRADEDB_HPP
