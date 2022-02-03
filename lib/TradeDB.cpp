@@ -54,10 +54,16 @@ int TradeDB::Insert(const std::shared_ptr<Entry>& entry) {
     return 0;
 }
 
-int TradeDB::Amend(const std::shared_ptr<Entry>& entry, uint64_t num_stocks, float price) {
-    WriteLock wi_lock(id_lock);
+int TradeDB::Amend(std::shared_ptr<Entry> entry, uint64_t num_stocks, float price) {
+    Delete(entry); // values are updated, we need to resort it
+    auto prev_stocks = entry->getNumStocks();
     entry->setNumStocks(num_stocks);
     entry->setPrice(price);
+
+    if (entry->getNumStocks() < prev_stocks)
+        Insert(entry);
+    else
+        ExecuteOrder(entry);
 
     std::cout << "Entry amended to: " << *entry << std::endl;
 

@@ -56,7 +56,7 @@ enum TradeCompletionType { FULL, PARTIAL };
 class TradeDB {
 public:
     int Insert(const std::shared_ptr<Entry>& entry);
-    static int Amend(const std::shared_ptr<Entry>& entry, uint64_t num_stocks, float price);
+    int Amend(std::shared_ptr<Entry> entry, uint64_t num_stocks, float price);
     int Delete(const std::shared_ptr<Entry>& entry);
     void ExecuteOrder(const std::shared_ptr<Entry>& entry);
     static void CompleteOrder(TradeCompletionType tct, const std::shared_ptr<Entry>& buy_entry,
